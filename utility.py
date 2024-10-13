@@ -168,7 +168,7 @@ def fill_in_fast(depth_map, max_depth=100.0, custom_kernel=DIAMOND_KERNEL_5,
 def outlier_removal(lidar, thre):
 
     sparse_lidar = np.squeeze(lidar)
-    valid_pixels = (sparse_lidar > 0.1).astype(np.float)
+    valid_pixels = (sparse_lidar > 0.1).astype(np.float64)
 
     lidar_sum = cv2.filter2D(sparse_lidar, -1, FULL_KERNEL_3)
     lidar_count = cv2.filter2D(valid_pixels, -1, FULL_KERNEL_3)

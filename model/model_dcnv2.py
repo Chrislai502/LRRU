@@ -5,7 +5,8 @@ import torch.nn as nn
 from scipy.stats import truncnorm
 import math
 
-from model.dcn_v2 import dcn_v2_conv
+# from model.dcn_v2 import dcn_v2_conv
+from torchvision.ops import deform_conv2d
 
 
 def Conv1x1(in_planes, out_planes, stride=1):
@@ -226,9 +227,13 @@ class Post_process_deconv(nn.Module, ABC):
         else:
             weight = weight / torch.sum(weight, 1).unsqueeze(1).expand_as(weight)
 
-        output = dcn_v2_conv.apply(
-            depth, offset, weight, self.w, self.b, self.stride, self.padding,
-            self.dilation, self.deformable_groups)
+        output = deform_conv2d(
+            depth, offset, weight=self.w, bias=self.b, stride=self.stride,
+            padding=self.padding, dilation=self.dilation, mask=weight)
+
+        # output = dcn_v2_conv.apply(
+        #     depth, offset, weight, self.w, self.b, self.stride, self.padding,
+        #     self.dilation, self.deformable_groups)
 
         if self.dkn_residual:
             output = output + depth

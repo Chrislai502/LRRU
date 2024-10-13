@@ -15,3 +15,5 @@ wandb
 imageio
 prettytable
 pandas
+opencv-python-headless
+# numpy==1.26.4 # for DCNv2

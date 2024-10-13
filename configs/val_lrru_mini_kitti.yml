@@ -8,7 +8,7 @@ cudnn_deterministic: False
 cudnn_benchmark: True
 
 # Dataset
-data_folder: '/home/temp_user/kitti_depth'
+data_folder: '/home/art-chris/testing/LRRU/data/kitti_depth'
 dataset: ['dep', 'gt', 'rgb']
 val: 'select'
 grid_spot: True
