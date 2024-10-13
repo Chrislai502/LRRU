@@ -26,6 +26,14 @@ cfg.num_sample = 0
 cfg.rgb_noise = 0.05
 cfg.noise = 0.01
 
+# Database path
+cfg.db_path= '/home/art-chris/testing/LRRU/testing_scripts/augment_eval/kitti_depth_selection.db'
+
+# Augmentations (for all RPY)
+cfg.rotation_start= -2.0
+cfg.rotation_stop= 3.0  # Non-inclusive
+cfg.rotation_step= 2.0
+
 cfg.toy_test = False
 cfg.toy_test_number = 30
 

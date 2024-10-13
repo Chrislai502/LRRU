@@ -10,7 +10,8 @@ def get(arg=None):
 
     if arg is not None:
         cfg.defrost()
-        cfg.merge_from_file('configs/' + arg.configuration)
+        # cfg.merge_from_file('configs/' + arg.configuration)
+        cfg.merge_from_file('../../configs/' + arg.configuration)
         cfg.num_gpus = len(cfg.gpus)
         cfg.project_name = arg.project_name
         cfg.freeze()

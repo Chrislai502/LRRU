@@ -143,7 +143,6 @@ def get_kittipaths(split, args):
             items[key] = [None] * len(paths_rgb)
         else:
             items[key] = val
-
     return items
 
 def kittitransforms(split, args, dep, gt, K, rgb,

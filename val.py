@@ -146,7 +146,12 @@ def test(args):
                 samplep = {key: val.float().cuda() for key, val in sample_.items()
                            if torch.is_tensor(val)}
                 samplep['d_path'] = sample_['d_path']
-
+                # Print out all key and tensor size if it is a tensor, else print out the value
+                for key, val in samplep.items():
+                    if torch.is_tensor(val):
+                        print(key, val[0].size())
+                    else:
+                        print(key, val)
                 output_ = net(samplep)
 
             torch.cuda.synchronize()

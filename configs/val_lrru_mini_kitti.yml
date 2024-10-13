@@ -9,7 +9,7 @@ cudnn_benchmark: True
 
 # Dataset
 data_folder: '/home/art-chris/testing/LRRU/data/kitti_depth'
-dataset: ['dep', 'gt', 'rgb']
+dataset: ['dep', 'gt', 'rgb', 'K']
 val: 'select'
 grid_spot: True
 num_sample: 1000
@@ -17,6 +17,17 @@ cut_mask: False
 max_depth: 80.0
 rgb_noise: 0.0
 noise: 0.0
+
+# Database path
+db_path: '/home/art-chris/testing/LRRU/testing_scripts/augment_eval/kitti_depth_selection.db'
+
+# Augmentations (for all RPY)
+# rotation_start: -6.0
+# rotation_stop: 7.0  # Non-inclusive
+# rotation_step: 2.0
+rotation_start: -2.0
+rotation_stop: 3.0  # Non-inclusive
+rotation_step: 2.0
 
 hflip: True
 colorjitter: True
@@ -53,8 +64,8 @@ wandb_id_test: ''
 prob: 1.0
 bc: 2
 model: 'model_dcnv2'
-test_dir: './pretrained/LRRU_Mini'
-test_model: './pretrained/LRRU_Mini/LRRU_Mini.pt'
+test_dir: '../../pretrained/LRRU_Mini'
+test_model: '../../pretrained/LRRU_Mini/LRRU_Mini.pt'
 
 # Summary
 num_summary: 6

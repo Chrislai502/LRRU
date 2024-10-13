@@ -2,10 +2,7 @@ import numpy as np
 from PIL import Image
 import os
 from scipy.spatial.transform import Rotation as R
-
-## Chat Reference: 
-# - https://chatgpt.com/c/6705c501-d5c0-8006-bd53-1c7f752864cc
-# - https://chatgpt.com/g/g-YyyyMT9XH-chatgpt-classic/c/670b337e-c6ac-8006-9b9e-a7c6f5332e5a
+import time  # To track runtime
 
 # Step 1: Read depth image
 def read_depth_image(image_path):
@@ -22,7 +19,14 @@ def read_depth_image(image_path):
     return depth_in_meters, valid_mask
 
 # Step 2: Read calibration file
-def read_calibration_file(filepath):
+def read_calibration_file(filepath=None):
+    if filepath is None:
+        fx = 721.5377  # Focal length in x
+        fy = 721.5377  # Focal length in y
+        cx = 609.5593  # Principal point x
+        cy = 172.8540  # Principal point y
+        return fx, fy, cx, cy
+    
     data = {}
     with open(filepath, 'r') as f:
         for line in f.readlines():
@@ -78,8 +82,8 @@ def project_to_2d(points_3d, fx, fy, cx, cy, height, width):
     i = (X * fx / Z) + cx
     j = (-Y * fy / Z) + cy
     
-    i = np.clip(np.round(i), 0, width - 1).astype(np.int)
-    j = np.clip(np.round(j), 0, height - 1).astype(np.int)
+    i = np.clip(np.round(i), 0, width - 1).astype(int)
+    j = np.clip(np.round(j), 0, height - 1).astype(int)
 
     depth_map = np.zeros((height, width), dtype=np.float32)
     depth_map[j, i] = Z
@@ -94,7 +98,7 @@ def save_depth_image(depth_map, output_path):
 # Main function to perform augmentations and save rotated depth images
 def augment_and_save_depth_images(image_path, calibration_file_path, output_dir):
     # Define rotation increments and limits
-    rotation_range = np.arange(-1, 1.2, 0.2)  # From -1 to 1 degree in 0.2 degree increments
+    rotation_range = np.arange(-2, 2.2, 0.2)  # From -1 to 1 degree in 0.2 degree increments
     
     # Read depth image
     depth_map, valid_mask = read_depth_image(image_path)
@@ -112,9 +116,16 @@ def augment_and_save_depth_images(image_path, calibration_file_path, output_dir)
     # Get original filename
     original_filename = os.path.basename(image_path)
     
+    # Timing variables
+    total_time = 0
+    transform_count = 0
+    
     # Iterate through roll, pitch, and yaw values
     for axis, axis_name in zip([0, 1, 2], ['roll', 'pitch', 'yaw']):
         for offset in rotation_range:
+            # Start timing
+            start_time = time.time()
+            
             # Create rotation vector (only rotate along the current axis)
             if axis_name == 'roll':
                 rotated_points = apply_rotation(points_3d, roll=offset)
@@ -133,19 +144,37 @@ def augment_and_save_depth_images(image_path, calibration_file_path, output_dir)
                 os.makedirs(axis_output_dir)
             
             # Save the rotated depth image
-            output_filename = f"{axis_name}_offset_{offset:+.1f}_{original_filename}"
+            sign = "pos" if offset > 0 else "neg"
+            output_filename = f"{axis_name}_offset_{sign}{abs(offset):.1f}_{original_filename}"
             output_path = os.path.join(axis_output_dir, output_filename)
             save_depth_image(rotated_depth_map, output_path)
             print(f"Saved: {output_path}")
+            
+            # Stop timing
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            
+            # Update timing
+            total_time += elapsed_time
+            transform_count += 1
+    
+    # Calculate and print average runtime
+    if transform_count > 0:
+        average_time = total_time / transform_count
+        print(f"Average runtime per transformation: {average_time:.4f} seconds")
+    else:
+        print("No transformations performed.")
 
 # Example usage
 if __name__ == "__main__":
     # Define paths to your depth image and calibration file
-    depth_image_path = 'path_to_your_depth_image.png'
-    calibration_file_path = 'path_to_your_calibration_file.txt'
+    depth_image_path = '/home/art-chris/testing/LRRU/data/kitti_depth/depth_selection/val_selection_cropped/velodyne_raw/2011_10_03_drive_0047_sync_velodyne_raw_0000000791_image_03.png'
+    calibration_file_path = None
     
     # Define output directory
-    output_dir = 'ROOT_OUTPUT_DIR'
+    output_dir = '/home/art-chris/testing/LRRU/testing_scripts/augment_eval/rotated_depth_images'
+    
+    os.makedirs(output_dir, exist_ok=True)
     
     # Perform augmentations and save rotated depth images
     augment_and_save_depth_images(depth_image_path, calibration_file_path, output_dir)
