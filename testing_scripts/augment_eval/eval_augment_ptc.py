@@ -4,9 +4,10 @@ arg = argparse.ArgumentParser(description='depth completion')
 arg.add_argument('-p', '--project_name', type=str, default='inference')
 arg.add_argument('-c', '--configuration', type=str, default='val_iccv.yml')
 arg = arg.parse_args()
-temp = arg.configuration
 from configs import get as get_cfg
 config = get_cfg(arg)
+# Extract configuration filename
+config_name = arg.configuration.split('.')[0] # name example: val_lrru_mini_kitti
 
 # ENVIRONMENT SETTINGS
 import os
@@ -30,6 +31,9 @@ from torch.utils.data import DataLoader
 import cv2
 import pandas as pd
 import itertools
+import sqlite3
+import time
+from datetime import datetime
 
 # Custom modules (assuming they are available in your environment)
 from dataloaders.kitti_loader import KittiDepthValAugmented
@@ -59,7 +63,6 @@ def apply_combined_rotation_to_depth_map(depth_map, roll_deg, pitch_deg, yaw_deg
     theta = np.deg2rad(pitch_deg) # Pitch
     psi = np.deg2rad(yaw_deg)     # Yaw
     
-    print(depth_map.shape)
     h, w = depth_map.shape
     u_coords, v_coords = np.meshgrid(np.arange(w), np.arange(h))
     
@@ -96,10 +99,79 @@ def apply_combined_rotation_to_depth_map(depth_map, roll_deg, pitch_deg, yaw_deg
     
     return transformed_depth_map
 
+def get_dataset_model_info(config_name):
+    """Extract dataset name and model size from configuration filename."""
+    parts = config_name.split('_')
+    dataset_name = parts[-1].capitalize()  # Example: "kitti" -> "Kitti"
+    model_size = parts[-2]  # Example: "mini"
+    return dataset_name, model_size
+
+def check_existing_sample(conn, image_path, roll, pitch, yaw):
+    """Check if a sample with the given roll, pitch, yaw, and image path exists."""
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT COUNT(*) FROM evaluations WHERE image_path = ? AND roll = ? AND pitch = ? AND yaw = ?
+    ''', (image_path, roll, pitch, yaw))
+    return cursor.fetchone()[0] > 0  # Returns True if the sample exists
+
+def create_or_connect_db(config):
+    """Create or connect to the SQLite database based on the config."""
+    # If a valid db_path is given, use it
+    if config.db_path and os.path.exists(config.db_path):
+        db_path = config.db_path
+        print(f"Connecting to existing database at {db_path}...")
+    else:
+        # Else create a new database with a timestamped folder
+        dataset_name, model_size = get_dataset_model_info(config_name)
+        # timestamp = datetime.now().strftime('%Y%m%d')
+        rpy_range = f"{config.rotation_start}_{config.rotation_stop}_{config.rotation_step}"
+        # eval_folder = f"./eval_datasets/{timestamp}"
+        eval_folder = f"./eval_datasets/"
+        os.makedirs(eval_folder, exist_ok=True)
+        db_path = os.path.join(eval_folder, f"{dataset_name}_eval_{model_size}_({rpy_range}).db")
+        print(f"Creating new database at {db_path}...")
+
+    # Create database connection
+    conn = sqlite3.connect(db_path)
+    return conn
+
+def setup_database(conn):
+    """Set up the necessary table if it doesn't exist."""
+    with conn:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS evaluations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                image_path TEXT NOT NULL,
+                roll REAL NOT NULL,
+                pitch REAL NOT NULL,
+                yaw REAL NOT NULL,
+                RMSE REAL,
+                MAE REAL,
+                iRMSE REAL,
+                iMAE REAL,
+                REL REAL,
+                D1 REAL,
+                D2 REAL,
+                D3 REAL,
+                UNIQUE(image_path, roll, pitch, yaw)
+            )
+        ''')
+
+def insert_evaluation_results_batch(conn, results_list):
+    """Insert accumulated results into the database in one transaction."""
+    cursor = conn.cursor()
+    cursor.executemany('''
+        INSERT OR IGNORE INTO evaluations (
+            image_path, roll, pitch, yaw, RMSE, MAE, iRMSE, iMAE, REL, D1, D2, D3
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', results_list)
+    conn.commit()  # Commit after all the rows have been inserted in a batch
+
 def test(args):
-    # Initialize lists to store evaluation metrics
-    results_list = []
-    print(args)
+
+    # Initialize database connection
+    conn = create_or_connect_db(config)
+    setup_database(conn)
     
     # Define rotation parameters
     rotation_start = int(args.rotation_start)
@@ -123,7 +195,7 @@ def test(args):
     print('Done!')
 
     
-     # NETWORK
+    # NETWORK
     print(emoji.emojize('Prepare model... :writing_hand:', variant="emoji_type"), end=' ')
     model = get_model(args)
     net = model(args)
@@ -136,7 +208,7 @@ def test(args):
     metric = get_metric(args)
     metric = metric(args)
     print('Done!')
-    
+
     # LOAD MODEL
     print(emoji.emojize('Load model... :writing_hand:', variant="emoji_type"), end=' ')
     if len(args.test_model) != 0:
@@ -159,31 +231,48 @@ def test(args):
     net.eval()
     print('Done!')
     
-    # # Read camera intrinsics
-    # fx, fy, cx, cy = read_calibration_file(args.calibration_file)
-    
     num_samples = len(loader_test)
     total_iterations = num_samples * len(rotation_combinations)
     pbar_ = tqdm(total=total_iterations)
+
+    # Found starting point flag, don't have to query database to check if it exists
+    flag = True
     
     with torch.no_grad():
         for batch_idx, sample_ in enumerate(loader_test):
+
+            # Path for the depth image
+            depth_image_name_path = sample_['d_path'][0]
+
+            # # Check if this image already exists in the database
+            # roll_deg, pitch_deg, yaw_deg = rotation_combinations[0]
+            # if check_existing_sample(conn, depth_image_name_path, roll_deg, pitch_deg, yaw_deg):
+            #     print(f"Skipping already processed image-pointcloud pair: {depth_image_name_path}")
+            #     continue
+
+            torch.cuda.synchronize()
+            t0 = time.time()
+
+            # Row Entries List
+            row_entries = []
+
             # Get the depth map and RGB image
             depth_map = sample_['dep'][0].cpu().numpy()  # Shape H x W
-            # rgb_image = sample_['rgb'][0].cpu().numpy()  # Shape C x H x W
-            # rgb_image = np.transpose(rgb_image, (1, 2, 0))  # Convert to H x W x C
-            # # Normalize RGB image if necessary
-            # rgb_image = rgb_image * 255.0  # Assuming the model expects inputs in [0, 255]
-            # rgb_image = rgb_image.astype(np.uint8)
-            
-            # # Get ground truth depth map
-            # gt_depth_map = sample_['gt'][0].cpu().numpy()
             
             # Get camera intrinsics K (fx, fy, cx, cy)
             K = sample_['K'][0].cpu().numpy()[0]  # Assuming K is 1 x 4 tensor
             fx, fy, cx, cy = K[0], K[1], K[2], K[3]
-            
+
             for roll_deg, pitch_deg, yaw_deg in rotation_combinations:
+
+                # Check if this specific sample already exists in the database
+                if flag and check_existing_sample(conn, depth_image_name_path, roll_deg, pitch_deg, yaw_deg):
+                    # print(f"Skipping already processed combination: {depth_image_name_path}, Roll: {roll_deg}, Pitch: {pitch_deg}, Yaw: {yaw_deg}")
+                    pbar_.update(1)
+                    continue
+                else:
+                    flag = False
+
                 # Apply rotations
                 depth_map_rot = np.squeeze(np.array(depth_map.copy()))# Also converted to numpy
                 depth_map_rot = apply_combined_rotation_to_depth_map(
@@ -207,33 +296,28 @@ def test(args):
                 depth_map_rot = torch.from_numpy(depth_map_rot).unsqueeze(0)
                 ###
                 
-                # Prepare sample for model
-                # samplep = {key: val.float().cuda() for key, val in sample_.items()
-                #     if torch.is_tensor(val) and key != 'K'}
-                # samplep['ip'] = dep_ip_torch
-                # samplep['dep_clear'] = dep_clear_torch
-                
-                torch.cuda.synchronize()
-                t0 = time.time()
-                
                 samplep = {
-                    'dep': depth_map_rot.float().cuda(),
-                    'dep_clear' : dep_clear_torch.float().cuda(),
-                    'gt' : sample_['gt'].squeeze(0).float().cuda(),
-                    'rgb' : sample_['rgb'].squeeze(0).float().cuda(),
+                    'dep': depth_map_rot.unsqueeze(0).float().cuda(),
+                    'dep_clear' : dep_clear_torch.unsqueeze(0).float().cuda(),
+                    'gt' : sample_['gt'].float().cuda(),
+                    'rgb' : sample_['rgb'].float().cuda(),
                     'ip' : dep_ip_torch.float().cuda(),
                     'd_path' : sample_['d_path']
                 }
                 
+                
                 # Check all the tensor shapes
-                for key, val in samplep.items():
-                    if torch.is_tensor(val):
-                        print(key, val.shape)
-                    else:
-                        print(key, val)
+                # for key, val in samplep.items():
+                #     if torch.is_tensor(val):
+                #         print(key, val.shape)
+                #     else:
+                #         print(key, val)
                 
                 # Run the model
                 output_ = net(samplep)
+                
+                torch.cuda.synchronize()
+                t1 = time.time()
                 
                 # Evaluate
                 if 'test' not in args.test_option:
@@ -241,37 +325,35 @@ def test(args):
                 else:
                     metric_test = metric.evaluate(output_['results'][-1], samplep['dep'], 'test')
                 
-                # Store results
-                results_list.append({
-                    'sample_id': batch_idx,
-                    'image_path': samplep['d_path'][0],
-                    'roll': roll,
-                    'pitch': pitch,
-                    'yaw': yaw,
-                    'RMSE': metric_test.data.cpu().numpy()[0, 0],
-                    'MAE': metric_test.data.cpu().numpy()[0, 1],
-                    # Add other metrics if needed
-                })
+                # if roll_deg == 0 and pitch_deg ==0 and yaw_deg ==0:
+                #     print("Baseline Reached!, ", metric_test.data.cpu().numpy())
+                # else:
+                #     print(f"{roll_deg}, {pitch_deg}, {yaw_deg}", metric_test)
+
+                # Add results for the current rotation to the batch list
+                row_entries.append((
+                    depth_image_name_path, roll_deg, pitch_deg, yaw_deg,
+                    metric_test.data.cpu().numpy()[0, 0],  # RMSE
+                    metric_test.data.cpu().numpy()[0, 1],  # MAE
+                    metric_test.data.cpu().numpy()[0, 2],  # iRMSE
+                    metric_test.data.cpu().numpy()[0, 3],  # iMAE
+                    metric_test.data.cpu().numpy()[0, 4],  # REL
+                    metric_test.data.cpu().numpy()[0, 5],  # D^1
+                    metric_test.data.cpu().numpy()[0, 6],  # D^2
+                    metric_test.data.cpu().numpy()[0, 7],  # D^3
+                ))
                 
-            pbar_.update(1)
+                pbar_.update(1)
+            
+            # After processing all rotations for the current image, insert the results into the database in a batch
+            insert_evaluation_results_batch(conn, row_entries)
+
         pbar_.close()
         
-        # Save results to CSV
-        results_df = pd.DataFrame(results_list)
-        results_df.to_csv('evaluation_results.csv', index=False)
+    # Close the database connection
+    conn.close()
 
 if __name__ == "__main__":
-    # # Parse command-line arguments
-    # arg = argparse.ArgumentParser(description='depth completion')
-    # arg.add_argument('-p', '--project_name', type=str, default='inference')
-    # arg.add_argument('-c', '--configuration', type=str, default='val_iccv.yml')
-    # args = arg.parse_args()
-    
-    # # # Set CUDA devices
-    # # os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, args.gpus))
-
-    # # Run the test function
-    # print(args)
     test(config)
 
 

@@ -2,7 +2,8 @@ data/
 pretrained/
 *.png
 *.PNG
-
+*.db
+*/*.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

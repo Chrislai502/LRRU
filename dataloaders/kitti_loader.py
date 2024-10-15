@@ -148,10 +148,10 @@ class KittiDepthValAugmented(data.Dataset):
         if self.args.debug_dp or self.args.test:
             items['d_path'] = paths
         # Print the items and sizes of the tensors if they are tensors
-        for key, val in items.items():
-            if isinstance(val, torch.Tensor):
-                print(key, val.size())
-        print("Loader DOne!")
+        # for key, val in items.items():
+        #     if isinstance(val, torch.Tensor):
+        #         print(key, val.size())
+        # print("Loader DOne!")
                 
         return items
 

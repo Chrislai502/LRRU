@@ -9,7 +9,7 @@ cudnn_benchmark: True
 
 # Dataset
 data_folder: '/home/art-chris/testing/LRRU/data/kitti_depth'
-dataset: ['dep', 'gt', 'rgb', 'K']
+dataset: ['dep', 'gt', 'rgb']
 val: 'select'
 grid_spot: True
 num_sample: 1000
@@ -17,18 +17,6 @@ cut_mask: False
 max_depth: 80.0
 rgb_noise: 0.0
 noise: 0.0
-
-# Augmentations (for all RPY)
-# rotation_start: -6.0
-# rotation_stop: 7.0  # Non-inclusive
-# rotation_step: 2.0
-# rotation_start: -1.0
-# rotation_stop: 2.0  # Non-inclusive
-# rotation_step: 1.0
-
-rotation_start: -0.0
-rotation_stop: 1.0  # Non-inclusive
-rotation_step: 1.0
 
 hflip: True
 colorjitter: True
@@ -62,11 +50,11 @@ tta: False
 test_not_random_crop: False
 wandb_id_test: ''
 
-prob: 1.0
-bc: 2
+prob: 0.5
+bc: 16
 model: 'model_dcnv2'
-test_dir: '../../pretrained/LRRU_Mini'
-test_model: '../../pretrained/LRRU_Mini/LRRU_Mini.pt'
+test_dir: './pretrained/LRRU_Base'
+test_model: './pretrained/LRRU_Base/LRRU_Base.pt'
 
 # Summary
 num_summary: 6
@@ -77,5 +65,3 @@ vis_step: 1000
 record_by_wandb_online: False
 test_record_by_wandb_online: False
 save_result_only: False
-
-
