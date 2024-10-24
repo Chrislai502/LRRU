@@ -3,6 +3,7 @@ tensorboardx
 timm
 einops
 matplotlib
+seaborn
 imageio
 scipy
 h5py
@@ -16,4 +17,10 @@ imageio
 prettytable
 pandas
 opencv-python-headless
-# numpy==1.26.4 # for DCNv2
+
+
+# CUDA: 10.2
+# Python: 3.8.17
+# PyTorch: 1.12.1
+# torchvision: 0.13.1
+# cuDNN: 7.6.5

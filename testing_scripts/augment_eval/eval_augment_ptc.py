@@ -174,13 +174,17 @@ def test(args):
     setup_database(conn)
     
     # Define rotation parameters
-    rotation_start = int(args.rotation_start)
-    rotation_stop = int(args.rotation_stop)
-    rotation_step = int(args.rotation_step)
+    rotation_start = float(args.rotation_start)
+    rotation_stop = float(args.rotation_stop)
+    rotation_step = float(args.rotation_step)
 
-    roll_values = list(range(rotation_start, rotation_stop, rotation_step))
-    pitch_values = list(range(rotation_start, rotation_stop, rotation_step))
-    yaw_values = list(range(rotation_start, rotation_stop, rotation_step))
+    # Calculate the number of steps based on the range and step size
+    num_steps = int(np.ceil((rotation_stop - rotation_start) / rotation_step)) + 1
+
+    # Use np.linspace to ensure the stop value is included
+    roll_values = np.linspace(rotation_start, rotation_stop, num_steps)
+    pitch_values = np.linspace(rotation_start, rotation_stop, num_steps)
+    yaw_values = np.linspace(rotation_start, rotation_stop, num_steps)
 
     # All combinations
     rotation_combinations = list(itertools.product(roll_values, pitch_values, yaw_values))
@@ -330,19 +334,33 @@ def test(args):
                 # else:
                 #     print(f"{roll_deg}, {pitch_deg}, {yaw_deg}", metric_test)
 
+                # print(
+                #     metric_test.data.cpu().numpy()[0, 0],  # RMSE
+                #     metric_test.data.cpu().numpy()[0, 1],  # MAE
+                #     metric_test.data.cpu().numpy()[0, 2],  # iRMSE
+                #     metric_test.data.cpu().numpy()[0, 3],  # iMAE
+                #     metric_test.data.cpu().numpy()[0, 4],  # REL
+                #     metric_test.data.cpu().numpy()[0, 5],  # D^1
+                #     metric_test.data.cpu().numpy()[0, 6],  # D^2
+                #     metric_test.data.cpu().numpy()[0, 7],  # D^3
+                # )
+                
                 # Add results for the current rotation to the batch list
                 row_entries.append((
                     depth_image_name_path, roll_deg, pitch_deg, yaw_deg,
-                    metric_test.data.cpu().numpy()[0, 0],  # RMSE
-                    metric_test.data.cpu().numpy()[0, 1],  # MAE
-                    metric_test.data.cpu().numpy()[0, 2],  # iRMSE
-                    metric_test.data.cpu().numpy()[0, 3],  # iMAE
-                    metric_test.data.cpu().numpy()[0, 4],  # REL
-                    metric_test.data.cpu().numpy()[0, 5],  # D^1
-                    metric_test.data.cpu().numpy()[0, 6],  # D^2
-                    metric_test.data.cpu().numpy()[0, 7],  # D^3
+                    metric_test.data.cpu().numpy()[0, 0].item(),  # RMSE
+                    metric_test.data.cpu().numpy()[0, 1].item(),  # MAE
+                    metric_test.data.cpu().numpy()[0, 2].item(),  # iRMSE
+                    metric_test.data.cpu().numpy()[0, 3].item(),  # iMAE
+                    metric_test.data.cpu().numpy()[0, 4].item(),  # REL
+                    metric_test.data.cpu().numpy()[0, 5].item(),  # D^1
+                    metric_test.data.cpu().numpy()[0, 6].item(),  # D^2
+                    metric_test.data.cpu().numpy()[0, 7].item(),  # D^3
                 ))
                 
+                # print(row_entries[-1])
+                # conn.close()
+                # return
                 pbar_.update(1)
             
             # After processing all rotations for the current image, insert the results into the database in a batch

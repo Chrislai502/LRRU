@@ -125,6 +125,11 @@ if __name__ == "__main__":
     depth_image_path2 = 'path_to_your_second_depth_image.png'
     depth_image_path1 = '/home/art-chris/testing/LRRU/data/kitti_depth/depth_selection/val_selection_cropped/velodyne_raw/2011_10_03_drive_0047_sync_velodyne_raw_0000000791_image_03.png'
     depth_image_path2 = '/home/art-chris/testing/LRRU/data/kitti_depth/depth_selection/val_selection_cropped/velodyne_raw/2011_10_03_drive_0047_sync_velodyne_raw_0000000761_image_02.png'
+    depth_image_path1 = '/home/art-chris/testing/LRRU/data/kitti_depth/depth_selection/val_selection_cropped/velodyne_raw/2011_10_03_drive_0047_sync_velodyne_raw_0000000791_image_03.png'
+
+    # depth_image_path1 = "/home/art-chris/testing/LRRU/testing_scripts/augment_eval/rotated_depth_images_rpy_combined/2011_10_03_drive_0047_sync_velodyne_raw_0000000791_image_03_roll_+1.0_pitch_+1.0_yaw_+1.0.png"
+    depth_image_path2 = "/home/art-chris/testing/LRRU/testing_scripts/augment_eval/rotated_depth_images_rpy_combined/2011_10_03_drive_0047_sync_velodyne_raw_0000000791_image_03_roll_-5.0_pitch_-5.0_yaw_-5.0.png"
+
 
     # calibration_file_path = 'calib_cam_to_cam.txt'
     

@@ -20,8 +20,13 @@ noise: 0.0
 
 # Augmentations (for all RPY)
 rotation_start: -6.0
-rotation_stop: 7.0  # Non-inclusive
+rotation_stop: 6.0  # Inclusive
 rotation_step: 2.0
+
+# rotation_start: -1.0
+# rotation_stop: 1.0  # Inclusive
+# rotation_step: 1.0
+
 # rotation_start: -1.0
 # rotation_stop: 2.0  # Non-inclusive
 # rotation_step: 1.0
