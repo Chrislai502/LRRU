@@ -1,20 +1,20 @@
-dataset: 'test'
-rosbag: '/media/art-chris/ART Edward Lee/rosbags/ims_2024/09_04_run2'
+dataset: 'ims_2024_09_04-13_17_48'
+rosbag: '/media/roar/ART Edward Lee/rosbags/ims_2024/09_04_run2/rosbag2_2024_09_04-13_17_48'
+out_folder: '/home/roar/LRRU/data' # leave blank for default data directory
 transform:
-  R: 
-    - 0.027525738742841938
-    - -1.033688753011144
-    - 0.006610247865331641
-    - 0.012630571608039612
-    - -0.007514428926169111
-    - -1.0089528002128245
-    - 1.0215483720108904
-    - 0.029685765235633724
-    - -0.2516030025977667
-  T:
-    - 0.03944128717478616
-    - 0.30934130289153616
-    - 0.7784016931657523
+  R: [[0.027525738742841938, -1.033688753011144,  0.006610247865331641], [0.012630571608039612, -0.007514428926169111, -1.0089528002128245], [1.0215483720108904, 0.029685765235633724, -0.2516030025977667]]
+  T: [0.03944128717478616, 0.30934130289153616, 0.7784016931657523]
 camera_frame: 'vimba_front'
 lidar_frame: 'luminar_front'
-time_tol: 0.1
+time_tol: 0.025
+sample_rate: 10
+num_points: # leave blank for default all
+overlay:
+  create: True
+  frame_rate: 30
+  depth_range:
+    - 0  # meters
+    - 30 # meters
+  point_radius: 2 # pixels
+  opacity: 0.4
+  length: 5 # seconds (leave blank for default all)
