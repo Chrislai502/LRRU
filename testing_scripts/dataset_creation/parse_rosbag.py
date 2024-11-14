@@ -163,7 +163,7 @@ class ParseRosbag:
 
         # Populate lidar image
         lidar_within_im = lidar_in_cam[within_im_mask]
-        depths = np.linalg.norm(lidar_within_im, axis=1)
+        depths = lidar_within_im[:, 2]
         depths[depths >= 256] = 0
         lidar_im[lidar_proj[:, 1], lidar_proj[:, 0]] = depths * 256
 
